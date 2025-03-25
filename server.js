@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
+const sites = require("./sites");
 require("dotenv").config();
 
 const app = express();
@@ -10,6 +11,37 @@ const port = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// Dynamic site-specific routes
+app.use("/:siteName/*", (req, res, next) => {
+  const { siteName } = req.params;
+  const site = sites[siteName];
+
+  if (!site) {
+    return res.status(404).json({
+      error: "Site not found",
+      message: `No configuration found for site: ${siteName}`,
+    });
+  }
+
+  // Add site configuration to request object for use in route handlers
+  req.site = site;
+  next();
+});
+
+// Site-specific routes
+app.get("/:siteName/credentials", (req, res) => {
+  const { siteName } = req.params;
+  const site = req.site;
+
+  // Return site-specific credentials (excluding sensitive tokens)
+  res.json({
+    siteName,
+    domain: site.domain,
+    apiVersion: site.apiVersion,
+    corsOrigins: site.corsOrigins,
+  });
+});
 
 // Test route
 app.get("/", (req, res) => {
